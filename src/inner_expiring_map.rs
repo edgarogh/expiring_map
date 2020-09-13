@@ -74,6 +74,19 @@ impl<K, V> InnerExpiringMap<K, V>
         })
     }
 
+    pub(crate) fn remove<Q: ?Sized>(&mut self, k: &Q, current_time: SystemTime) -> Option<V>
+        where K: Borrow<Q>,
+              Q: Hash + Eq
+    {
+        self.inner.remove(k).and_then(|val_container| {
+            if current_time.le(&val_container.expire_time) {
+                Some(val_container.value)
+            } else {
+                None
+            }
+        })
+    }
+
     pub(crate) fn remove_expired_entries(&mut self, current_time: SystemTime) {
         self.inner.retain(|_k, v| current_time.le(&v.expire_time));
     }
@@ -112,6 +125,20 @@ mod tests {
         let read_time_2 = SystemTime::now().add(Duration::from_secs(65));
         assert_eq!(None, map.get_mut("keyA", read_time_2));
         assert_eq!(None, map.get("keyA", read_time_2));
+    }
+
+    #[test]
+    fn remove() {
+        let mut map = get_test_map();
+
+        map.insert("keyA".to_owned(), "valA".to_owned(), SystemTime::now());
+        map.insert("keyB".to_owned(), "valB".to_owned(), SystemTime::now());
+
+        assert_eq!(Some("valA".to_owned()), map.remove("keyA", SystemTime::now()));
+
+        assert_eq!(1, map.inner.len());
+
+        assert_eq!(None, map.remove("keyB", SystemTime::now().add(Duration::from_secs(65))));
     }
 
     #[test]

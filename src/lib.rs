@@ -37,6 +37,13 @@ impl<K, V> ExpiringMap<K, V>
         self.inner.get_mut(k, SystemTime::now())
     }
 
+    pub fn remove<Q: ?Sized>(&mut self, k: &Q) -> Option<V>
+        where K: Borrow<Q>,
+              Q: Hash + Eq
+    {
+        self.inner.remove(k, SystemTime::now())
+    }
+
     pub fn remove_expired_entries(&mut self) {
         self.inner.remove_expired_entries(SystemTime::now());
     }
